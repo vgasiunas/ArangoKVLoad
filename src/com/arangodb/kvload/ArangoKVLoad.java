@@ -32,7 +32,7 @@ import com.arangodb.velocypack.ValueType;
 public class ArangoKVLoad {
 
 	private final static Random random = new Random();
-	
+
 	// options with their default values
 	private static String dbName = "bench";
 	private static String collectionName = "docs";
@@ -51,18 +51,19 @@ public class ArangoKVLoad {
 	private static String caCertPath = "";
 	private static int replicationFactor = 1;
 	private static int writeConcern = 1;
-	
+	private static int numberOfShards = 1;
+
 	private final static int attrDictSize = 1000;
 	private final static ArrayList<String> attrDict = new ArrayList<String>();
-	
+
 	private static class ThreadStat {
 		public long insertTime = 0;
 		public long numReads = 0;
 		public long numWrites = 0;
 	};
-	
+
 	private static ThreadStat[] threadStats;
-	
+
 	private static String randomString(int length) {
 		int leftLimit = 48; // numeral '0'
 	    int rightLimit = 122; // letter 'z'
@@ -72,13 +73,13 @@ public class ArangoKVLoad {
 	      .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
 	      .toString();
 	}
-	
+
 	private static void populateAttributeDictionary() {
 		for (int j = 0; j < attrDictSize; j++) {
 			attrDict.add(randomString(attrLen));
 		}
 	}
-	
+
 	private static VPackSlice buildObject(int index) {
 		VPackBuilder builder = new VPackBuilder();
 		builder.add(ValueType.OBJECT);
@@ -98,62 +99,65 @@ public class ArangoKVLoad {
 
         option = new Option("c", "collection", true, "collection name");
         options.addOption(option);
-        
+
         option = new Option("n", "numdocs", true, "number of documents");
         option.setType(Number.class);
         options.addOption(option);
-        
+
         option = new Option("a", "numattrs", true, "number of attributes");
         option.setType(Number.class);
         options.addOption(option);
-        
+
         option = new Option("l", "attrlen", true, "attribute length");
         option.setType(Number.class);
         options.addOption(option);
-        
+
         option = new Option("t", "threads", true, "number of threads");
         option.setType(Number.class);
         options.addOption(option);
-        
+
         option = new Option("b", "batchsize", true, "batch size");
         option.setType(Number.class);
         options.addOption(option);
-        
+
         option = new Option("T", "time", true, "benchmark time in seconds");
         option.setType(Number.class);
         options.addOption(option);
-        
+
         option = new Option("w", "pctwrite", true, "percentage of write operatins (0-100)");
         option.setType(Number.class);
         options.addOption(option);
-        
+
         option = new Option("h", "host", true, "host name");
         options.addOption(option);
-        
+
         option = new Option("P", "port", true, "port number");
         option.setType(Number.class);
         options.addOption(option);
-        
+
         option = new Option("u", "user", true, "user name");
         options.addOption(option);
-        
+
         option = new Option("p", "password", true, "password");
         options.addOption(option);
-        
+
         option = new Option("S", "usessl", false, "use SSL");
         options.addOption(option);
-        
+
         option = new Option("C", "cacert", true, "path to the CA certificate");
         options.addOption(option);
-        
+
         option = new Option("r", "replfactor", true, "collection replication factor");
         option.setType(Number.class);
         options.addOption(option);
-        
+
         option = new Option("W", "writeconcern", true, "collection write concern");
         option.setType(Number.class);
         options.addOption(option);
 
+        option = new Option("ns", "numshards", true, "collection write concern");
+        option.setType(Number.class);
+        options.addOption(option);
 
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
@@ -161,82 +165,86 @@ public class ArangoKVLoad {
 
         try {
             cmd = parser.parse(options, args);
-        
+
 	        if (cmd.hasOption("database")) {
 	        	dbName = cmd.getOptionValue("database");
 	        }
-	        
+
 	        if (cmd.hasOption("collection")) {
 	        	collectionName = cmd.getOptionValue("collection");
 	        }
-	        
+
 	        if (cmd.hasOption("numdocs")) {
 	        	numDocs = ((Number)cmd.getParsedOptionValue("numdocs")).intValue();
 	        }
-	        
+
 	        if (cmd.hasOption("numattrs")) {
 	        	numAttrs = ((Number)cmd.getParsedOptionValue("numattrs")).intValue();
 	        }
-	        
+
 	        if (cmd.hasOption("attrlen")) {
 	        	attrLen = ((Number)cmd.getParsedOptionValue("attrlen")).intValue();
 	        }
-	        
+
 	        if (cmd.hasOption("threads")) {
 	        	numThreads = ((Number)cmd.getParsedOptionValue("threads")).intValue();
 	        }
-	        
+
 	        if (cmd.hasOption("batchsize")) {
 	        	batchSize = ((Number)cmd.getParsedOptionValue("batchsize")).intValue();
 	        }
-	        
+
 	        if (cmd.hasOption("pctwrite")) {
 	        	pctWrite = ((Number)cmd.getParsedOptionValue("pctwrite")).intValue();
 	        }
-	        
+
 	        if (cmd.hasOption("time")) {
 	        	benchTime = ((Number)cmd.getParsedOptionValue("time")).intValue();
 	        }
-	        
+
 	        if (cmd.hasOption("host")) {
 	        	host = cmd.getOptionValue("host");
 	        }
-	        
+
 	        if (cmd.hasOption("port")) {
 	        	port = ((Number)cmd.getParsedOptionValue("port")).intValue();
 	        }
-	        
+
 	        if (cmd.hasOption("user")) {
 	        	user = cmd.getOptionValue("user");
 	        }
-	        
+
 	        if (cmd.hasOption("password")) {
 	        	password = cmd.getOptionValue("password");
 	        }
-	        
+
 	        if (cmd.hasOption("usessl")) {
 	        	useSSL = true;
 	        }
-	        
+
 	        if (cmd.hasOption("cacert")) {
 	        	caCertPath = cmd.getOptionValue("cacert");
 	        }
-	        
+
 	        if (cmd.hasOption("replfactor")) {
 	        	replicationFactor = ((Number)cmd.getParsedOptionValue("replfactor")).intValue();
 	        }
-	        
+
 	        if (cmd.hasOption("writeconcern")) {
 	        	writeConcern = ((Number)cmd.getParsedOptionValue("writeconcern")).intValue();
 	        }
-        
+
+	        if (cmd.hasOption("numshards")) {
+                numberOfShards = ((Number)cmd.getParsedOptionValue("numshards")).intValue();
+            }
+
         } catch (ParseException e) {
             System.out.println(e.getMessage());
             formatter.printHelp("arangokvload", options);
             System.exit(1);
         }
 	}
-	
+
 	private static void createDatabase(ArangoDB arangoDB) {
 		try {
 			ArangoDatabase db = arangoDB.db(dbName);
@@ -249,16 +257,17 @@ public class ArangoKVLoad {
 			return;
 		}
 	}
-	
+
 	private static void recreateCollection(ArangoDB arangoDB) {
 		try {
 			if (arangoDB.db(dbName).collection(collectionName).exists()) {
 				arangoDB.db(dbName).collection(collectionName).drop();
 			}
-			CollectionEntity collEntity = arangoDB.db(dbName).createCollection(collectionName, 
+			CollectionEntity collEntity = arangoDB.db(dbName).createCollection(collectionName,
 					new CollectionCreateOptions()
 							.replicationFactor(replicationFactor)
-							.minReplicationFactor(writeConcern));
+							.minReplicationFactor(writeConcern)
+							.numberOfShards(numberOfShards));
 			System.out.println("Collection created: " + collEntity.getName());
 		} catch (ArangoDBException e) {
 			System.err.println("Failed to create collection: " + collectionName + "; " + e.getMessage());
@@ -268,25 +277,31 @@ public class ArangoKVLoad {
 
 	private static void populateData(ArangoDB arangoDB, int threadIndex) {
 		ArangoCollection coll = arangoDB.db(dbName).collection(collectionName);
-		
+
 		long startTime, endTime = 0;
 		int startIdx = (numDocs / numThreads) * threadIndex;
 		int endIdx = startIdx + (numDocs / numThreads);
 		if (threadIndex == numThreads - 1) {
 			endIdx = numDocs;
 		}
-		
+
 		startTime = System.currentTimeMillis();
-		ArrayList<VPackSlice> batch = new ArrayList<VPackSlice>();
-		
+
 		try {
-			for (int i = startIdx; i < endIdx; i++) {
-				batch.add(buildObject(i));
-				if ((i+1) % batchSize == 0) {
-					coll.insertDocuments(batch);
-					batch.clear();
-				}
-			}
+		    if (batchSize == 1) {
+		        for (int i = startIdx; i < endIdx; i++) {
+                    coll.insertDocument(buildObject(i));
+                }
+		    } else {
+		        ArrayList<VPackSlice> batch = new ArrayList<VPackSlice>();
+    			for (int i = startIdx; i < endIdx; i++) {
+    				batch.add(buildObject(i));
+    				if ((i+1) % batchSize == 0) {
+    					coll.insertDocuments(batch);
+    					batch.clear();
+    				}
+    			}
+		    }
 		} catch (ArangoDBException e) {
 			System.err.println("Failed to fill collection. " + e.getMessage());
 			e.printStackTrace();
@@ -296,12 +311,12 @@ public class ArangoKVLoad {
 		threadStats[threadIndex].insertTime = (endTime-startTime);
 	    System.out.println("Thread " + threadIndex + " execution time: " + (endTime-startTime) + "ms");
 	}
-	
+
 	private static void populateDataMultithreaded(ArangoDB arangoDB) {
 		ArrayList<Thread> threads = new ArrayList<Thread>();
-		
+
 		System.out.println("Inserting " + numDocs + " documents");
-		
+
 		for (int i = 0; i < numThreads; i++) {
 			final int threadIndex = i;
 			Thread thread = new Thread(() -> {
@@ -326,30 +341,38 @@ public class ArangoKVLoad {
 		long endTime = startTime + ((long)benchTime)*1000;
 		long curTime = startTime;
 
-		ArrayList<VPackSlice> batch = new ArrayList<VPackSlice>();
-		ArrayList<String> batchIds = new ArrayList<String>();
-
 		long numReads = 0;
 		long numWrites = 0;
 
 		try {
+		    ArrayList<VPackSlice> batch = new ArrayList<VPackSlice>();
+	        ArrayList<String> batchIds = new ArrayList<String>();
 			while (curTime < endTime) {
 				if (random.nextInt(100) < pctWrite) {
-					// perform a batch of write operations
-					for (int i = 0; i < batchSize; i++) {
-						batch.add(buildObject(random.nextInt(numDocs)));
-					}
-					coll.updateDocuments(batch);
-					batch.clear();
+				    if (batchSize == 1) {
+				        int key = random.nextInt(numDocs);
+				        coll.updateDocument("" + key, buildObject(key));
+				    } else {
+    					// perform a batch of write operations
+    					for (int i = 0; i < batchSize; i++) {
+    						batch.add(buildObject(random.nextInt(numDocs)));
+    					}
+    					coll.updateDocuments(batch);
+    					batch.clear();
+				    }
 					numWrites += batchSize;
 				} else {
-					// perform a batch of read operations
-					for (int i = 0; i < batchSize; i++) {
-						batchIds.add("" + random.nextInt(numDocs));
-					}
-					coll.getDocuments(batchIds, VPackSlice.class);
-					batchIds.clear();
-					numReads += batchSize;
+				    if (batchSize == 1) {
+				        coll.getDocument("" + random.nextInt(numDocs), VPackSlice.class);
+				    } else {
+    					// perform a batch of read operations
+    					for (int i = 0; i < batchSize; i++) {
+    						batchIds.add("" + random.nextInt(numDocs));
+    					}
+    					coll.getDocuments(batchIds, VPackSlice.class);
+    					batchIds.clear();
+				    }
+    				numReads += batchSize;
 				}
 				curTime = System.currentTimeMillis();
 			}
@@ -358,7 +381,7 @@ public class ArangoKVLoad {
 			e.printStackTrace();
 			return;
 		}
-		
+
 		threadStats[threadIndex].numReads = numReads;
 		threadStats[threadIndex].numWrites = numWrites;
 		System.out.println("Thread " + threadIndex + " completed " + numWrites + " writes and " + numReads + " reads.");
@@ -366,9 +389,9 @@ public class ArangoKVLoad {
 
 	private static void benchReadWriteLoadMultithreaded(ArangoDB arangoDB) {
 		ArrayList<Thread> threads = new ArrayList<Thread>();
-		
+
 		System.out.println("Running benchmark for " + benchTime + " seconds");
-		
+
 		for (int i = 0; i < numThreads; i++) {
 			final int threadIndex = i;
 			Thread thread = new Thread(() -> {
@@ -385,7 +408,7 @@ public class ArangoKVLoad {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private static ArangoDB connectToDB() {
 		try {
 			ArangoDB.Builder builder = new ArangoDB.Builder();
@@ -407,7 +430,7 @@ public class ArangoKVLoad {
 
 				SSLContext sslContext = SSLContext.getInstance("TLS");
 				sslContext.init(null, tmf.getTrustManagers(), null);
-				
+
 				builder.useSsl(useSSL)
 					.sslContext(sslContext);
 			}
@@ -423,7 +446,7 @@ public class ArangoKVLoad {
 			return null;
 		}
 	}
-	
+
 	private static void printSummary() {
 		long totalReads = 0;
 		long totalWrites = 0;
@@ -450,14 +473,14 @@ public class ArangoKVLoad {
 
 	public static void main(String[] args) {
 		parseCommandLineOptions(args);
-		
+
 		ArangoDB arangoDB = connectToDB();
-		
+
 		threadStats = new ThreadStat[numThreads];
 		for (int i = 0; i < numThreads; i++) {
 			threadStats[i] = new ThreadStat();
 		}
-		
+
 		createDatabase(arangoDB);
 		recreateCollection(arangoDB);
 		populateAttributeDictionary();
@@ -465,7 +488,7 @@ public class ArangoKVLoad {
 		benchReadWriteLoadMultithreaded(arangoDB);
 
 	    arangoDB.shutdown();
-	    
+
 	    printSummary();
 	}
 
